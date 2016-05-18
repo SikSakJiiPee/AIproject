@@ -8,7 +8,6 @@
 #ifndef EXAMPLE_BEHAVIOURS_H_
 #define EXAMPLE_BEHAVIOURS_H_
 
-
 #include "GameEvents.h"
 #include "PlayerController.h"
 

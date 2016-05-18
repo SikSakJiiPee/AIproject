@@ -11,14 +11,7 @@
 #include "JoystickController.h"
 #include "MyAI.h"
 
-#include <iostream>
-
-
-
-
-
-//--------------------------------------------------
-
+#include <Layer.h>
 
 
 
@@ -103,6 +96,27 @@ public:
 		{
 			m_myAIControllers[i]->setMoveTargetObject(dynamite, 1.0f);
 		}
+
+		/*
+		AIMapLayer* speedMap = environmentInfo->getAILayer("MyLayer");
+		speedMap->getLayer()->setOpacity(0.5f);
+
+		for (size_t y = 0; y < speedMap->getHeight(); ++y)
+		{
+			for (size_t x = 0; x < speedMap->getWidth(); ++x)
+			{
+				if (x == y)
+				{
+					//uint8_t p[4] = { 0xff, 0xff, 0xff, 0xff };
+					float d = x*y;
+					float d1 = speedMap->getHeight()*speedMap->getWidth();
+
+					speedMap->setPixel(x, y, d/d1);
+				}
+			}
+		}*/
+	//7	const uint8_t* pixel = speedMap->getPixelFromPos( slm::vec2(20.2f,17.4f) );
+	//	int value = pixel[0];
 	}
 
 
@@ -124,14 +138,11 @@ public:
 		{
 			m_myAIControllers[i]->resetTargetToShoot();
 		}
-
 	}
 
 	// Called each frame. Update you player character controllers in this function.
 	virtual void onUpdate(GameEnvironmentInfoProvider* environmentInfo, float deltaTime)
 	{
-
-
 	//	yam2d::esLogMessage("onUpdate");
 	}
 
@@ -157,16 +168,17 @@ public:
 		{
 			yam2d::GameObject* gameObject = dynamic_cast<yam2d::GameObject*>(eventObject);
 			assert(gameObject != 0);
+			std::string type = gameObject->getType();
 			// Don't print spawned weapon projectiles or explosions.
-			if (gameObject->getType() != "Missile"
-				&& gameObject->getType() != "Bullet"
-				&& gameObject->getType() != "Grenade"
-				&& gameObject->getType() != "Mine"
-				&& gameObject->getType() != "SmallExplosion"
-				&& gameObject->getType() != "MediumExplosion"
-				&& gameObject->getType() != "BigExplosion"
-				&& gameObject->getType() != "MineExplosion"
-				&& gameObject->getType() != "GrenadeExplosion")
+			if (type != "Missile"
+				&& type != "Bullet"
+				&& type != "Grenade"
+				&& type != "Mine"
+				&& type != "SmallExplosion"
+				&& type != "MediumExplosion"
+				&& type != "BigExplosion"
+				&& type != "MineExplosion"
+				&& type != "GrenadeExplosion")
 			{
 				// Prints: Soldier, Robot, HomeBase, Flag
 				if (gameObject->getProperties().hasProperty("team"))
@@ -184,13 +196,14 @@ public:
 		{
 			ItemEvent* itemEvent = dynamic_cast<ItemEvent*>(eventObject);
 			assert(itemEvent != 0);
-			int teamIndex = itemEvent->getObject()->getGameObject()->getProperties()["teamIndex"].get<int>();
+			yam2d::GameObject* item = itemEvent->getItemGameObject();
+			int teamIndex = itemEvent->getCharacterGameObject()->getProperties()["teamIndex"].get<int>();
 
 			yam2d::esLogMessage("%s: gameObjectType=%s, team=%d", eventName.c_str(), itemEvent->getItemGameObject()->getType().c_str(), teamIndex);
 
 			for (size_t i = 0; i < m_autoAttackFlagCarryingBots.size(); ++i)
 			{
-				m_autoAttackFlagCarryingBots[i]->setTargetToShoot(itemEvent->getObject()->getGameObject(), 1.9f, 0.05f);
+				m_autoAttackFlagCarryingBots[i]->setTargetToShoot(itemEvent->getCharacterController()->getGameObject(), 1.9f, 0.05f);
 			}
 			
 
@@ -201,7 +214,7 @@ public:
 				const yam2d::GameObject* homeBase = environmentInfo->getEnemyHomeBase(this);
 				for (size_t i = 0; i < m_directMoverAIControllers.size(); ++i)
 				{
-					m_directMoverAIControllers[i]->setMoveTargetObject(homeBase, 1.0f);	
+					m_directMoverAIControllers[i]->setMoveTargetObject(homeBase, 1.0f);
 				}
 				for (size_t i = 0; i < m_myAIControllers.size(); ++i)
 				{
@@ -216,10 +229,12 @@ public:
 				for (size_t i = 0; i < m_directMoverAIControllers.size(); ++i)
 				{
 					m_directMoverAIControllers[i]->setMoveTargetObject(homeBase, 1.0f);
+					m_directMoverAIControllers[i]->stop();
 				}
 				for (size_t i = 0; i < m_myAIControllers.size(); ++i)
 				{
-					m_myAIControllers[i]->setMoveTargetObject(homeBase, 1.0f);		
+					m_myAIControllers[i]->setMoveTargetObject(homeBase, 1.0f);
+					m_myAIControllers[i]->stop();
 				}
 			}
 		}
@@ -233,10 +248,6 @@ public:
 			{
 				m_autoAttackFlagCarryingBots[i]->resetTargetToShoot();
 			}
-			for (size_t i = 0; i < m_myAIControllers.size(); ++i)
-			{
-				m_myAIControllers[i]->resetTargetToShoot();
-			}
 
 
 			// Item propped.
@@ -245,10 +256,6 @@ public:
 			for (size_t i = 0; i < m_directMoverAIControllers.size(); ++i)
 			{
 				m_directMoverAIControllers[i]->setMoveTargetObject(dynamite, 1.0f);
-			}
-			for (size_t i = 0; i < m_myAIControllers.size(); ++i)
-			{
-				m_myAIControllers[i]->setMoveTargetObject(dynamite, 1.0f);
 			}
 		}
 		else
@@ -276,12 +283,10 @@ public:
 		{
 			CollisionEvent* collisionEvent = dynamic_cast<CollisionEvent*>(eventObject);
 			assert(collisionEvent != 0);
+			if (!collisionEvent->isValid()) return;
 			yam2d::GameObject* otherGo = collisionEvent->getOtherGameObject();
 			std::string otherType = otherGo->getType();
 			yam2d::vec2 localNormal = collisionEvent->getLocalNormal();
-	//		yam2d::esLogMessage("%s %s: myBody=%s toObject=%s bodyType=%s, localNormal=<%.2f,%.2f> ", gameObject->getType().c_str(), eventName.c_str(), collisionEvent->getMyBody()->getType().c_str(),
-	//			otherType.c_str(),
-	//			collisionEvent->getOtherBody()->getType().c_str(), localNormal.x, localNormal.y);
 		}
 		else if (eventName == "TakingDamage")
 		{
@@ -312,10 +317,13 @@ int main(int argc, char *argv[])
 	app.disableLayer("ObjectSpawns");
 	app.disableLayer("GroundTypeColliders");
 	//app.disableLayer("GroundMoveSpeed");
+	//app.setLayerOpacity("DebugLayer", 0.7f); 
 	app.setLayerOpacity("GroundMoveSpeed", 0.7f); 
 	//app.setDefaultGame("level1.tmx", "MyAI", "DirectMoverAI", 4);
-	app.setDefaultGame("Level0.tmx", "AutoAttackFlagCarryingBot", "MyAI", 4);
-//	app.setDefaultGame("Level0.tmx", "DirectMoverAI", "AutoAttackFlagCarryingBot", 4);
+	app.setDefaultGame("Level0.tmx", "AutoAttackFlagCarryingBot", "MyAI", "YourNameHere", 4);
+//	app.setDefaultGame("Level1.tmx", "AutoAttackFlagCarryingBot", "JoystickController", "YourNameHere", 4);
+//	app.setDefaultGame("Level0.tmx", "AutoAttackFlagCarryingBot", "DirectMoverAI", "YourNameHere", 4);
+//	app.setDefaultGame("Level0.tmx", "DirectMoverAI", "AutoAttackFlagCarryingBot", "YourNameHere", 4);
 //	app.setDefaultGame("Level0.tmx", "DirectMoverAI", "AutoAttackFlagCarryingBot", 4);
 	MyPlayerController player1Controller;
 	app.setPlayer1Controller(&player1Controller);
